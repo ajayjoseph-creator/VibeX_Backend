@@ -6,9 +6,9 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    isAdmin:{
-      type:Boolean,
-      default:false
+    isAdmin: {
+      type: Boolean,
+      default: false,
     },
 
     email: {
@@ -27,16 +27,26 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    profileImage:{
+      type:String,
+    },
 
     vibe: {
       type: [String],
       default: [],
+    },
+
+    // 👉 Add this field for face verification base image
+    baseImage: {
+      type: String, // base64 string OR image file path (your choice)
+      default: null,
     },
   },
   {
     timestamps: true,
   }
 );
+
 
 const User = mongoose.model("User", userSchema);
 export default User;

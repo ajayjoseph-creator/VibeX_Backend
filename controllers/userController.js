@@ -4,6 +4,9 @@ import generateToken from "../utils/generateToken.js";
 import { OAuth2Client } from "google-auth-library";
 import { sendOTP } from "../utils/sendMail.js";
 import { otpStore } from "../utils/otpStore.js";
+import { cloudinary } from '../config/cloudinary.js';
+
+import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -187,4 +190,67 @@ export const verifyOtpController = (req, res) => {
   otpStore.delete(email);
   console.log("✅ OTP verified successfully for", email);
   return res.status(200).json({ success: true, message: "OTP verified" });
+};
+
+
+export const uploadImage = async (req, res) => {
+  try {
+    const file = req.file;
+    const userId = req.body.userId;
+
+    if (!file) {
+      return res.status(400).json({ success: false, message: "No image uploaded" });
+    }
+
+    // 👇 Upload to Cloudinary
+    const result = await cloudinary.uploader.upload(file.path, {
+      folder: "vibex_faces",
+    });
+
+    // ✅ Safely delete local file (if it exists)
+    if (file.path && fs.existsSync(file.path) && !file.path.startsWith("http")) {
+      fs.unlinkSync(file.path);
+    }
+
+    // 👇 Update user document with image URL
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { baseImage: result.secure_url },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Image uploaded and user updated",
+      imageUrl: result.secure_url,
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("Image upload error ➤", error);
+    return res.status(500).json({ success: false, message: "Something went wrong" });
+  }
+};
+
+export const getUserProfile = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const user = await User.findById(userId).select("-password"); // remove password field
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    console.error("Error fetching user profile:", error.message);
+    res.status(500).json({ message: "Server Error" });
+  }
 };
