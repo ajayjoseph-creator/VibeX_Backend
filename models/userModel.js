@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+
     isAdmin: {
       type: Boolean,
       default: false,
@@ -27,8 +28,9 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
-    profileImage:{
-      type:String,
+
+    profileImage: {
+      type: String,
     },
 
     vibe: {
@@ -36,17 +38,63 @@ const userSchema = new mongoose.Schema(
       default: [],
     },
 
-    // 👉 Add this field for face verification base image
     baseImage: {
-      type: String, // base64 string OR image file path (your choice)
+      type: String,
       default: null,
+    },
+
+    gender: {
+      type: String,
+      enum: ["Man", "Woman", "NoFace", "Unknown"],
+      default: "Unknown",
+    },
+
+    bannerImage: {
+      type: String,
+      default: null,
+    },
+
+    bio: {
+      type: String,
+      maxLength: 150,
+      default: "",
+    },
+
+    // ✅ Profession field
+    profession: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    // ✅ Location field
+    location: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    // ✅ Post count
+    postsCount: {
+      type: Number,
+      default: 0,
+    },
+
+    // ✅ Followers count
+    followers: {
+      type: Number,
+      default: 0,
+    },
+
+    // ✅ Following count
+    following: {
+      type: Number,
+      default: 0,
     },
   },
   {
     timestamps: true,
   }
 );
-
 
 const User = mongoose.model("User", userSchema);
 export default User;

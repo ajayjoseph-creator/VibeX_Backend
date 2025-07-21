@@ -51,11 +51,11 @@ const startServer = async () => {
 
     // Start server
     app.listen(PORT, () => {
-      console.log(`🚀 Server Running on http://localhost:${PORT}`);
+      console.log(`Server Running on http://localhost:${PORT}`);
     });
 
   } catch (err) {
-    console.error("❌ Server Error:", err.message);
+    console.error("Server Error:", err.message);
     process.exit(1);
   }
 };

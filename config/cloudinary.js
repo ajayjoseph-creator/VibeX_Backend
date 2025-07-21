@@ -1,9 +1,9 @@
-import dotenv from 'dotenv';
-dotenv.config(); 
+// config/cloudinary.js
 
-import { v2 as cloudinary } from 'cloudinary';
-import { CloudinaryStorage } from 'multer-storage-cloudinary';
-
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import dotenv from "dotenv";
+dotenv.config();
 
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
@@ -11,12 +11,13 @@ cloudinary.config({
   api_secret: process.env.CLOUD_API_SECRET,
 });
 
-const storage = new CloudinaryStorage({
-  cloudinary,
+export const cloudinaryStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
   params: {
-    folder: 'Nestify',
-    allowed_formats: ['jpg', 'png', 'jpeg'],
+    folder: "vibex_uploads",
+    allowed_formats: ["jpg", "png", "jpeg", "webp"],
   },
 });
 
-export { cloudinary, storage };
+// ✅ THIS is what you import in userController.js
+export { cloudinary };
