@@ -6,6 +6,8 @@ import userRoutes from './routes/userRoutes.js';
 import path from 'path';
 import { exec } from 'child_process';
 import { fileURLToPath } from 'url';
+import reelRoutes from "./routes/reelRoutes.js";
+
 
 dotenv.config();
 
@@ -31,6 +33,7 @@ const startServer = async () => {
 
     // Routes
     app.use("/api/users", userRoutes);
+    app.use("/api/reels", reelRoutes);
 
     // Python script route
     app.get('/api/verify-face', (req, res) => {
