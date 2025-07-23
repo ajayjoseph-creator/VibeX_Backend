@@ -1,31 +1,43 @@
 import Reel from "../models/reelsModel.js";
 
-// ✅ Upload a new reel
 export const uploadReel = async (req, res) => {
   try {
     const { videoUrl, caption } = req.body;
+    const userId = req.user?._id;
+
+    console.log("🔥 Uploading reel");
+    console.log("➡️ videoUrl:", videoUrl);
+    console.log("➡️ caption:", caption);
+    console.log("➡️ userId:", userId);
+
+    if (!videoUrl || !userId) {
+      return res.status(400).json({ message: "Missing video or user info" });
+    }
 
     const newReel = new Reel({
-      user: req.userId, // Make sure `req.userId` is set by auth middleware
       videoUrl,
       caption,
+      postedBy: userId,
     });
 
     await newReel.save();
     res.status(201).json({ message: "Reel uploaded successfully", reel: newReel });
   } catch (error) {
-    console.error("Reel upload error:", error.message);
-    res.status(500).json({ message: "Server error while uploading reel" });
+    console.error("❌ Error uploading reel:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
 // ✅ Get all reels
-export const getAllReels = async (req, res) => {
+export const getReelsByUser = async (req, res) => {
   try {
-    const reels = await Reel.find().populate("user", "name profileImage").sort({ createdAt: -1 });
+    const userId = req.params.id;
+    const reels = await Reel.find({ postedBy: userId })
+      .sort({ createdAt: -1 }) // latest first
+      .populate('postedBy', 'name profileImage'); // optional: to get user info
     res.status(200).json(reels);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch reels" });
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching reels for user' });
   }
 };
 

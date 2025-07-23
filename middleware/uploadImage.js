@@ -1,13 +1,11 @@
 import multer from "multer";
-import { cloudinaryStorage } from "../config/cloudinary.js"; // ✅ correct name
+import { imageStorage, videoStorage } from "../config/cloudinary.js";
 
-// Multer setup with Cloudinary storage
-const upload = multer({ storage: cloudinaryStorage });
-
-// Upload fields for banner and profile image
-export const uploadProfileFields = upload.fields([
+// 👤 Image fields (profile + banner)
+export const uploadProfileFields = multer({ storage: imageStorage }).fields([
   { name: "banner", maxCount: 1 },
   { name: "profile", maxCount: 1 },
 ]);
 
-export default upload;
+// 🎥 Video field (reel upload)
+export const uploadVideo = multer({ storage: videoStorage }).single("video");

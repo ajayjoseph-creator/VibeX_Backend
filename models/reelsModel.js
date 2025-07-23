@@ -1,25 +1,25 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const reelSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
   videoUrl: {
     type: String,
     required: true,
   },
-  caption: String,
-  likes: {
-    type: [mongoose.Schema.Types.ObjectId],
-    ref: "User",
-    default: [],
+  caption: {
+    type: String,
   },
+  postedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   createdAt: {
     type: Date,
     default: Date.now,
   },
 });
 
-export default mongoose.model("Reel", reelSchema);
+const Reel = mongoose.model('Reel', reelSchema);
+
+export default Reel;

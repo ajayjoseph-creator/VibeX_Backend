@@ -1,11 +1,14 @@
 import express from "express";
-import { uploadReel, getAllReels, toggleLike } from "../controllers/reelController.js";
+import { uploadReel, toggleLike, getReelsByUser } from "../controllers/reelController.js";
 import protect from "../middleware/authMiddleware.js";
+import { uploadVideo } from "../middleware/multer.js"; // ✅ Add this
 
 const router = express.Router();
 
-router.post("/upload_reels", protect, uploadReel);           // POST /api/reels → Upload a reel
-router.get("/reels", getAllReels);                        // GET /api/reels → List all reels
-router.patch("/:id/like", protect, toggleLike);  // PATCH /api/reels/:id/like → Like/unlike
+// ✅ Add 'uploadVideo' middleware here
+router.post("/upload", protect, uploadReel); 
+
+router.get('/user/:id', getReelsByUser);
+router.patch("/:id/like", protect, toggleLike);
 
 export default router;
