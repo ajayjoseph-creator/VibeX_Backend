@@ -41,6 +41,20 @@ export const getReelsByUser = async (req, res) => {
   }
 };
 
+//getAll Reels
+export const getAllReels = async (req, res) => {
+  try {
+    const reels = await Reel.find()
+      .populate('postedBy', 'name profileImage') // Only get name and image of uploader
+      .sort({ createdAt: -1 }); // Newest first
+
+    res.status(200).json(reels);
+  } catch (err) {
+    console.error("❌ Error fetching all reels:", err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // ✅ Like/unlike a reel
 export const toggleLike = async (req, res) => {
   try {

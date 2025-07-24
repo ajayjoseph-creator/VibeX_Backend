@@ -84,6 +84,12 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    recentSearches: [
+  {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  }
+],
 
     // ✅ Following count
     following: {

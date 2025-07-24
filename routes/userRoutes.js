@@ -1,10 +1,16 @@
 import express from "express";
 import {
+  addRecentSearch,
+  followUser,
+  getRecentSearches,
   getUserProfile,
   googleLogin,
   loginUser,
   registerUser,
+  removeRecentSearch,
+  searchUsers,
   sendOtpController,
+  unfollowUser,
   updateProfile,
   updateUserVibe,
   verifyOtpController,
@@ -22,5 +28,11 @@ router.post("/verify-otp", verifyOtpController);
 router.get("/profile/:id", protect, getUserProfile);
 router.put("/vibe", protect, updateUserVibe);
 router.put("/profile/update/:id", protect, uploadProfileFields, updateProfile);
+router.get("/search", searchUsers);
+router.post("/recent-search", protect, addRecentSearch);
+router.delete("/recent-search/:id", protect, removeRecentSearch);
+router.get("/recent-search", protect, getRecentSearches);
+router.put("/follow/:id", protect, followUser);
+router.put("/unfollow/:id", protect, unfollowUser);
 
 export default router;

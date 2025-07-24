@@ -206,3 +206,135 @@ export const updateProfile = async (req, res) => {
   }
 };
 
+export const searchUsers = async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q) {
+      return res.status(400).json({ message: "Search query is required" });
+    }
+
+    // Create case-insensitive regex
+    const searchRegex = new RegExp(q, "i");
+
+    const users = await User.find({
+      $or: [
+        { name: { $regex: searchRegex } },
+        { vibe: { $in: [searchRegex] } }
+      ],
+    }).select("name profileImage vibe");
+
+    res.status(200).json(users);
+  } catch (err) {
+    console.error("❌ Error in searchUsers:", err.message);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const addRecentSearch = async (req, res) => {
+  try {
+    const userId = req.user._id; // from auth middleware
+    const searchedUserId = req.body.userId;
+
+    const user = await User.findById(userId);
+
+    // Remove if already exists to re-add it on top
+    user.recentSearches = user.recentSearches.filter(
+      (id) => id.toString() !== searchedUserId
+    );
+
+    user.recentSearches.unshift(searchedUserId);
+
+    // Keep only 5 recent
+    if (user.recentSearches.length > 5) {
+      user.recentSearches.pop();
+    }
+
+    await user.save();
+
+    res.status(200).json({ success: true, recent: user.recentSearches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Something went wrong" });
+  }
+};
+
+
+export const removeRecentSearch = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const removeId = req.params.id;
+
+    const user = await User.findById(userId);
+    user.recentSearches = user.recentSearches.filter(
+      (id) => id.toString() !== removeId
+    );
+
+    await user.save();
+
+    res.status(200).json({ success: true, recent: user.recentSearches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Failed to remove search" });
+  }
+};
+
+
+export const getRecentSearches = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate(
+      "recentSearches",
+      "name profileImage profession"
+    );
+    res.status(200).json({ success: true, recent: user.recentSearches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Couldn't fetch" });
+  }
+};
+
+// Follow user
+export const followUser = async (req, res) => {
+  const { id } = req.params; // person to follow
+  const me = req.user._id;
+
+  if (me === id) return res.status(400).json({ message: "You can't follow yourself!" });
+
+  try {
+    const userToFollow = await User.findById(id);
+    const currentUser = await User.findById(me);
+
+    if (!userToFollow.followers.includes(me)) {
+      userToFollow.followers.push(me);
+      currentUser.following.push(id);
+
+      await userToFollow.save();
+      await currentUser.save();
+
+      res.status(200).json({ message: "Followed successfully!" });
+    } else {
+      res.status(400).json({ message: "Already following!" });
+    }
+  } catch (err) {
+    res.status(500).json({ message: "Error following user", error: err.message });
+  }
+};
+
+// Unfollow user
+export const unfollowUser = async (req, res) => {
+  const { id } = req.params;
+  const me = req.user._id;
+
+  try {
+    const userToUnfollow = await User.findById(id);
+    const currentUser = await User.findById(me);
+
+    userToUnfollow.followers = userToUnfollow.followers.filter((f) => f.toString() !== me.toString());
+    currentUser.following = currentUser.following.filter((f) => f.toString() !== id.toString());
+
+    await userToUnfollow.save();
+    await currentUser.save();
+
+    res.status(200).json({ message: "Unfollowed successfully!" });
+  } catch (err) {
+    res.status(500).json({ message: "Error unfollowing user", error: err.message });
+  }
+};
+
