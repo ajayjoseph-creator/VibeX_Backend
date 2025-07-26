@@ -32,7 +32,15 @@ router.get("/search", searchUsers);
 router.post("/recent-search", protect, addRecentSearch);
 router.delete("/recent-search/:id", protect, removeRecentSearch);
 router.get("/recent-search", protect, getRecentSearches);
-router.put("/follow/:id", protect, followUser);
+router.post("/follow/:id", protect, followUser);
 router.put("/unfollow/:id", protect, unfollowUser);
+router.post("/list", async (req, res) => {
+  try {
+    const users = await User.find({ _id: { $in: req.body.ids } }).select("name profileImage");
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
 
 export default router;

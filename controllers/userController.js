@@ -11,6 +11,8 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config();
+import mongoose from "mongoose";
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -292,49 +294,90 @@ export const getRecentSearches = async (req, res) => {
 
 // Follow user
 export const followUser = async (req, res) => {
-  const { id } = req.params; // person to follow
+  const { id } = req.params;
   const me = req.user._id;
 
-  if (me === id) return res.status(400).json({ message: "You can't follow yourself!" });
+  if (me.toString() === id.toString()) {
+    return res.status(400).json({ message: "You can't follow yourself!" });
+  }
 
   try {
-    const userToFollow = await User.findById(id);
-    const currentUser = await User.findById(me);
+    const [userToFollow, currentUser] = await Promise.all([
+      User.findById(id),
+      User.findById(me),
+    ]);
 
-    if (!userToFollow.followers.includes(me)) {
-      userToFollow.followers.push(me);
-      currentUser.following.push(id);
+    console.log("➡️ Me:", me);
+    console.log("➡️ Target:", id);
+    console.log("📌 userToFollow:", userToFollow);
+    console.log("📌 currentUser:", currentUser);
+
+    if (!userToFollow || !currentUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const meObjId = new mongoose.Types.ObjectId(me);
+    const targetObjId = new mongoose.Types.ObjectId(id);
+
+    if (!userToFollow.followers.includes(meObjId.toString())) {
+      userToFollow.followers.push(meObjId);
+      currentUser.following.push(targetObjId);
 
       await userToFollow.save();
       await currentUser.save();
 
-      res.status(200).json({ message: "Followed successfully!" });
+      return res.status(200).json({ message: "Followed successfully!" });
     } else {
-      res.status(400).json({ message: "Already following!" });
+      return res.status(400).json({ message: "Already following!" });
     }
+
   } catch (err) {
-    res.status(500).json({ message: "Error following user", error: err.message });
+    console.error("❌ Follow error:", err);
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
-// Unfollow user
+
 export const unfollowUser = async (req, res) => {
   const { id } = req.params;
   const me = req.user._id;
 
   try {
-    const userToUnfollow = await User.findById(id);
-    const currentUser = await User.findById(me);
+    const [userToUnfollow, currentUser] = await Promise.all([
+      User.findById(id),
+      User.findById(me),
+    ]);
 
-    userToUnfollow.followers = userToUnfollow.followers.filter((f) => f.toString() !== me.toString());
-    currentUser.following = currentUser.following.filter((f) => f.toString() !== id.toString());
+    if (!userToUnfollow || !currentUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Ensure both arrays exist
+    if (!Array.isArray(userToUnfollow.followers)) userToUnfollow.followers = [];
+    if (!Array.isArray(currentUser.following)) currentUser.following = [];
+
+    const meObjId = new mongoose.Types.ObjectId(me);
+    const targetObjId = new mongoose.Types.ObjectId(id);
+
+    // Remove me from target's followers
+    userToUnfollow.followers = userToUnfollow.followers.filter(
+      (followerId) => followerId.toString() !== meObjId.toString()
+    );
+
+    // Remove target from my following list
+    currentUser.following = currentUser.following.filter(
+      (followingId) => followingId.toString() !== targetObjId.toString()
+    );
 
     await userToUnfollow.save();
     await currentUser.save();
 
     res.status(200).json({ message: "Unfollowed successfully!" });
   } catch (err) {
-    res.status(500).json({ message: "Error unfollowing user", error: err.message });
+    console.error("❌ Unfollow error:", err);
+    res.status(500).json({
+      message: "Error unfollowing user",
+      error: err.message,
+    });
   }
 };
-
