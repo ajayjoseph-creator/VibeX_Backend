@@ -56,12 +56,13 @@ export const getAllReels = async (req, res) => {
 };
 
 // ✅ Like/unlike a reel
-export const toggleLike = async (req, res) => {
+export const likeReel = async (req, res) => {
   try {
     const reel = await Reel.findById(req.params.id);
+    const userId = req.user._id;
+
     if (!reel) return res.status(404).json({ message: "Reel not found" });
 
-    const userId = req.userId;
     const isLiked = reel.likes.includes(userId);
 
     if (isLiked) {
@@ -71,8 +72,36 @@ export const toggleLike = async (req, res) => {
     }
 
     await reel.save();
-    res.status(200).json({ message: isLiked ? "Unliked" : "Liked", likes: reel.likes });
-  } catch (error) {
-    res.status(500).json({ message: "Something went wrong" });
+
+    res.status(200).json({
+      message: isLiked ? "Unliked" : "Liked",
+      likes: reel.likes,
+      isLiked: !isLiked, // optional for frontend
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
+
+export const commentOnReel = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const reel = await Reel.findById(req.params.id);
+    if (!reel) return res.status(404).json({ message: 'Reel not found' });
+
+    const newComment = {
+      text: req.body.text,
+      commentedBy: userId,
+    };
+
+    reel.comments.push(newComment);
+    await reel.save();
+
+    res.status(200).json({ message: 'Comment added', comment: newComment });
+  } catch (err) {
+    console.error("Comment error:", err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+

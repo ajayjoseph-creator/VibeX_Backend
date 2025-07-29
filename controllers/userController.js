@@ -104,6 +104,7 @@ export const googleLogin = async (req, res) => {
 export const sendOtpController = async (req, res) => {
   const { email } = req.body;
   const otp = Math.floor(100000 + Math.random() * 900000);
+  console.log("otp:",otp)
 
   try {
     await sendOTP(email, otp);
