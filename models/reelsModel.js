@@ -1,8 +1,13 @@
 import mongoose from 'mongoose';
 
 const reelSchema = new mongoose.Schema({
-  videoUrl: {
+  mediaUrl: {
     type: String,
+    required: true,
+  },
+  mediaType: {
+    type: String,
+    enum: ['image', 'video'], // 👈 clearly define the type
     required: true,
   },
   caption: {
@@ -14,17 +19,17 @@ const reelSchema = new mongoose.Schema({
     required: true,
   },
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-   comments: [
+  comments: [
     {
       text: String,
       commentedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
       createdAt: { type: Date, default: Date.now },
-    }
+    },
   ],
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 const Reel = mongoose.model('Reel', reelSchema);

@@ -12,6 +12,7 @@ import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config();
 import mongoose from "mongoose";
+import asyncHandler from 'express-async-handler';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -161,6 +162,21 @@ export const updateUserVibe = async (req, res) => {
     res.status(200).json({ success: true, message: "Vibes updated successfully", data: user });
   } catch (err) {
     console.error("Update vibe error ➤", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+export const getVibe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, selectedVibes: user.vibe });
+  } catch (err) {
+    console.error("Error fetching vibes:", err);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -380,5 +396,94 @@ export const unfollowUser = async (req, res) => {
       message: "Error unfollowing user",
       error: err.message,
     });
+  }
+};
+
+// ✅ Reset Password with OTP
+export const resetPasswordWithOtp = async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  const stored = otpStore.get(email);
+
+  if (!stored || stored.otp.toString() !== otp.toString()) {
+    return res.status(400).json({ success: false, message: "Invalid OTP" });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+    otpStore.delete(email);
+
+    res.status(200).json({ success: true, message: "Password reset successful" });
+  } catch (err) {
+    console.error("Password Reset Error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
+
+// controller
+export const searchUsersByLocation = asyncHandler(async (req, res) => {
+  const { lat, lng } = req.query;
+
+  if (!lat || !lng) {
+    return res.status(400).json({ message: "Coordinates are required" });
+  }
+
+  const parsedLat = parseFloat(lat);
+  const parsedLng = parseFloat(lng);
+
+  const users = await User.find({
+    geoLocation: {
+      $near: {
+        $geometry: {
+          type: "Point",
+          coordinates: [parsedLng, parsedLat], // ✅ Numbers, not strings!
+        },
+        $maxDistance: 5000,
+      },
+    },
+  });
+
+  console.log("Searching near:", parsedLat, parsedLng);
+  console.log("Coordinates for MongoDB:", [parsedLng, parsedLat]);
+
+  res.json(users);
+});
+
+
+// controllers/userController.js
+
+export const getNearbyUsers = async (req, res) => {
+  try {
+    const { latitude, longitude, maxDistanceInKm = 10 } = req.query;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({ message: "Latitude and longitude required" });
+    }
+
+    const coords = [parseFloat(longitude), parseFloat(latitude)];
+
+    const nearbyUsers = await User.find({
+      geoLocation: {
+        $nearSphere: {
+          $geometry: {
+            type: "Point",
+            coordinates: coords,
+          },
+          $maxDistance: maxDistanceInKm * 1000, // Convert km to meters
+        },
+      },
+    });
+
+    console.log("Fetched users:", nearbyUsers);
+    res.status(200).json(nearbyUsers);
+  } catch (error) {
+    console.error("Error finding nearby users:", error);
+    res.status(500).json({ message: "Server error", error });
   }
 };

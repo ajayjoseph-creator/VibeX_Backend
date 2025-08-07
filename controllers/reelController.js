@@ -1,21 +1,20 @@
 import Reel from "../models/reelsModel.js";
 
+
 export const uploadReel = async (req, res) => {
   try {
-    const { videoUrl, caption } = req.body;
+    console.log("🧾 req.file:", req.file); // <--- ADD THIS
+    const mediaUrl = req.file?.path;
+    const { caption } = req.body;
     const userId = req.user?._id;
 
-    console.log("🔥 Uploading reel");
-    console.log("➡️ videoUrl:", videoUrl);
-    console.log("➡️ caption:", caption);
-    console.log("➡️ userId:", userId);
-
-    if (!videoUrl || !userId) {
-      return res.status(400).json({ message: "Missing video or user info" });
+    if (!mediaUrl || !userId) {
+      return res.status(400).json({ message: "Missing media or user info" });
     }
 
     const newReel = new Reel({
-      videoUrl,
+      mediaUrl,
+      mediaType: "image",
       caption,
       postedBy: userId,
     });
@@ -27,6 +26,10 @@ export const uploadReel = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+
+
+
 
 // ✅ Get all reels
 export const getReelsByUser = async (req, res) => {
