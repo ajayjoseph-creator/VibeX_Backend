@@ -13,7 +13,8 @@ import { Server } from 'socket.io';
 import Message from './models/message.js'; 
 import locationRoutes from "./routes/location.js"; 
 import mapRoutes from "./routes/mapRoutes.js";
-
+import notificationRoutes from './routes/notificationRoute.js'
+export { io };
 dotenv.config();
 
 const app = express();
@@ -121,6 +122,7 @@ app.use("/api/reels", reelRoutes);
 app.use("/api/messages", messageroute);
 app.use("/api/map", mapRoutes); 
 app.use("/api/location", locationRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Python script route
 app.get('/api/verify-face', (req, res) => {

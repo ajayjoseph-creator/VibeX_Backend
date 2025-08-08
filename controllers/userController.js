@@ -13,6 +13,9 @@ import dotenv from "dotenv";
 dotenv.config();
 import mongoose from "mongoose";
 import asyncHandler from 'express-async-handler';
+import  Notification  from "../models/Notification.js";
+import { io } from '../server.js';
+import axios from 'axios'
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -194,7 +197,7 @@ export const updateProfile = async (req, res) => {
       suggestions,
       profession,
       location,
-      phone, // 💡 From frontend "phone" comes as string
+      phone, // From frontend "phone" comes as string
     } = req.body;
 
     const updateData = {
@@ -212,6 +215,23 @@ export const updateProfile = async (req, res) => {
 
     if (req.files?.profile?.[0]?.path) {
       updateData.profileImage = req.files.profile[0].path;
+    }
+
+    // 🌍 If location is provided, fetch coordinates from OpenStreetMap
+    if (location) {
+      const geo = await axios.get(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}`
+      );
+
+      if (geo.data.length > 0) {
+        updateData.geoLocation = {
+          type: "Point",
+          coordinates: [
+            parseFloat(geo.data[0].lon), // longitude
+            parseFloat(geo.data[0].lat), // latitude
+          ],
+        };
+      }
     }
 
     const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
@@ -311,8 +331,9 @@ export const getRecentSearches = async (req, res) => {
 
 // Follow user
 export const followUser = async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params; // The user to follow
   const me = req.user._id;
+  console.log("me:" , me)
 
   if (me.toString() === id.toString()) {
     return res.status(400).json({ message: "You can't follow yourself!" });
@@ -324,11 +345,6 @@ export const followUser = async (req, res) => {
       User.findById(me),
     ]);
 
-    console.log("➡️ Me:", me);
-    console.log("➡️ Target:", id);
-    console.log("📌 userToFollow:", userToFollow);
-    console.log("📌 currentUser:", currentUser);
-
     if (!userToFollow || !currentUser) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -336,23 +352,45 @@ export const followUser = async (req, res) => {
     const meObjId = new mongoose.Types.ObjectId(me);
     const targetObjId = new mongoose.Types.ObjectId(id);
 
-    if (!userToFollow.followers.includes(meObjId.toString())) {
+    const alreadyFollowing = userToFollow.followers.includes(meObjId.toString());
+
+    if (!alreadyFollowing) {
+      // 🧠 Update DB
       userToFollow.followers.push(meObjId);
       currentUser.following.push(targetObjId);
-
       await userToFollow.save();
       await currentUser.save();
+
+      // 🔔 Save Notification to DB with 1-day auto expiry
+      await Notification.create({
+        type: "follow",
+        sender: me,
+        receiver: id,
+        message: `${currentUser?.name || "Someone"} followed you`,
+        expireAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day expiry
+      });
+      console.log("currentUser.name:", currentUser?.name);
+
+
+      // 🔔 Real-time notification
+      io.to(id).emit("receive_notification", {
+        senderId: me,
+        type: "follow",
+        message: `${currentUser.name} followed you`,
+        createdAt: new Date().toISOString(),
+      });
 
       return res.status(200).json({ message: "Followed successfully!" });
     } else {
       return res.status(400).json({ message: "Already following!" });
     }
-
   } catch (err) {
     console.error("❌ Follow error:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
+
 
 
 export const unfollowUser = async (req, res) => {
@@ -424,8 +462,6 @@ export const resetPasswordWithOtp = async (req, res) => {
   }
 };
 
-
-
 // controller
 export const searchUsersByLocation = asyncHandler(async (req, res) => {
   const { lat, lng } = req.query;
@@ -454,7 +490,6 @@ export const searchUsersByLocation = asyncHandler(async (req, res) => {
 
   res.json(users);
 });
-
 
 // controllers/userController.js
 

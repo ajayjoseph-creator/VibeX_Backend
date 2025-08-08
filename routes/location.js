@@ -15,7 +15,7 @@ router.get("/reverse-geocode", async (req, res) => {
         lon,
       },
       headers: {
-        "User-Agent": "Vibex/1.0", // OSM policy prakarama compulsory
+        "User-Agent": "Vibex/1.0", 
       },
     });
 
@@ -24,5 +24,7 @@ router.get("/reverse-geocode", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch location" });
   }
 });
+
+
 
 export default router;
