@@ -48,8 +48,9 @@ export const getReelsByUser = async (req, res) => {
 export const getAllReels = async (req, res) => {
   try {
     const reels = await Reel.find()
-      .populate('postedBy', 'name profileImage') // Only get name and image of uploader
-      .sort({ createdAt: -1 }); // Newest first
+      .populate("postedBy", "name profileImage")
+      .populate("comments.commentedBy", "username name profileImage")
+      .sort({ createdAt: -1 });
 
     res.status(200).json(reels);
   } catch (err) {
@@ -101,7 +102,13 @@ export const commentOnReel = async (req, res) => {
     reel.comments.push(newComment);
     await reel.save();
 
-    res.status(200).json({ message: 'Comment added', comment: newComment });
+    // Populate the last added comment with user details
+    const populatedReel = await Reel.findById(req.params.id)
+      .populate("comments.commentedBy", "username name profileImage");
+
+    const populatedComment = populatedReel.comments.pop(); // last comment
+
+    res.status(200).json(populatedComment);
   } catch (err) {
     console.error("Comment error:", err.message);
     res.status(500).json({ message: 'Server error' });

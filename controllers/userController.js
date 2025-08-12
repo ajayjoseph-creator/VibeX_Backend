@@ -13,9 +13,15 @@ import dotenv from "dotenv";
 dotenv.config();
 import mongoose from "mongoose";
 import asyncHandler from 'express-async-handler';
-import  Notification  from "../models/Notification.js";
 import { io } from '../server.js';
 import axios from 'axios'
+import Notification from '../models/notification.js';
+let onlineUsers;
+
+export const setSocket = (socketIoInstance, usersOnlineMap) => {
+  io = socketIoInstance;
+  onlineUsers = usersOnlineMap;
+};
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -331,9 +337,8 @@ export const getRecentSearches = async (req, res) => {
 
 // Follow user
 export const followUser = async (req, res) => {
-  const { id } = req.params; // The user to follow
+  const { id } = req.params; // user to follow
   const me = req.user._id;
-  console.log("me:" , me)
 
   if (me.toString() === id.toString()) {
     return res.status(400).json({ message: "You can't follow yourself!" });
@@ -349,43 +354,49 @@ export const followUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const meObjId = new mongoose.Types.ObjectId(me);
-    const targetObjId = new mongoose.Types.ObjectId(id);
-
-    const alreadyFollowing = userToFollow.followers.includes(meObjId.toString());
+    // Check if already following
+    const alreadyFollowing = userToFollow.followers.includes(me.toString());
 
     if (!alreadyFollowing) {
-      // 🧠 Update DB
-      userToFollow.followers.push(meObjId);
-      currentUser.following.push(targetObjId);
+      userToFollow.followers.push(me);
+      currentUser.following.push(id);
       await userToFollow.save();
       await currentUser.save();
 
-      // 🔔 Save Notification to DB with 1-day auto expiry
-      await Notification.create({
+      // Create notification document
+      const notification = new Notification({
         type: "follow",
         sender: me,
         receiver: id,
-        message: `${currentUser?.name || "Someone"} followed you`,
-        expireAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day expiry
+        message: "started following you",
       });
-      console.log("currentUser.name:", currentUser?.name);
+      await notification.save();
 
-
-      // 🔔 Real-time notification
-      io.to(id).emit("receive_notification", {
-        senderId: me,
-        type: "follow",
-        message: `${currentUser.name} followed you`,
-        createdAt: new Date().toISOString(),
-      });
+      // **Socket emit notification here**
+      if (io && onlineUsers) {
+  const receiverSocketId = onlineUsers[id];
+  if (receiverSocketId) {
+    io.to(receiverSocketId).emit("receive_notification", {
+      senderId: me,
+      type: "follow",
+      message: "started following you",
+      createdAt: new Date().toISOString(),
+    });
+    console.log("Sending notification to user:", id);
+    console.log("Receiver socket ID:", receiverSocketId);
+  } else {
+    console.log(`User ${id} is offline, notification not sent in real-time.`);
+  }
+} else {
+  console.log("Socket.IO or onlineUsers is not initialized");
+}
 
       return res.status(200).json({ message: "Followed successfully!" });
     } else {
       return res.status(400).json({ message: "Already following!" });
     }
   } catch (err) {
-    console.error("❌ Follow error:", err);
+    console.error("Follow error:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
@@ -394,8 +405,12 @@ export const followUser = async (req, res) => {
 
 
 export const unfollowUser = async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params; // The user to unfollow
   const me = req.user._id;
+
+  if (me.toString() === id.toString()) {
+    return res.status(400).json({ message: "You can't unfollow yourself!" });
+  }
 
   try {
     const [userToUnfollow, currentUser] = await Promise.all([
@@ -407,19 +422,14 @@ export const unfollowUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Ensure both arrays exist
-    if (!Array.isArray(userToUnfollow.followers)) userToUnfollow.followers = [];
-    if (!Array.isArray(currentUser.following)) currentUser.following = [];
-
     const meObjId = new mongoose.Types.ObjectId(me);
     const targetObjId = new mongoose.Types.ObjectId(id);
 
-    // Remove me from target's followers
+    // Remove from followers & following arrays
     userToUnfollow.followers = userToUnfollow.followers.filter(
       (followerId) => followerId.toString() !== meObjId.toString()
     );
 
-    // Remove target from my following list
     currentUser.following = currentUser.following.filter(
       (followingId) => followingId.toString() !== targetObjId.toString()
     );
@@ -427,15 +437,13 @@ export const unfollowUser = async (req, res) => {
     await userToUnfollow.save();
     await currentUser.save();
 
-    res.status(200).json({ message: "Unfollowed successfully!" });
+    return res.status(200).json({ message: "Unfollowed successfully!" });
   } catch (err) {
     console.error("❌ Unfollow error:", err);
-    res.status(500).json({
-      message: "Error unfollowing user",
-      error: err.message,
-    });
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 // ✅ Reset Password with OTP
 export const resetPasswordWithOtp = async (req, res) => {

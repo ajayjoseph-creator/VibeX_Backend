@@ -1,23 +1,51 @@
-import Notification from "../models/Notification.js";
+import Notification from "../models/notification.js";
+import { io, onlineUsers } from '../server.js';
 
+// Get all notifications for logged-in user
 export const getUserNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find({ receiver: req.params.userId })
+    const notifications = await Notification.find({ receiver: req.user.id })
       .sort({ createdAt: -1 })
-      .populate('sender', 'username'); 
+      .populate("sender", "username name profileImage");
 
-    res.json(notifications);
+    res.status(200).json(notifications);
   } catch (err) {
-    res.status(500).json({ error: 'Server error while fetching notifications' });
+    res.status(500).json({ message: "Failed to fetch notifications" });
   }
 };
 
-export const markAsReadNotification = async (req, res) => {
+// Mark as read
+export const markAsRead = async (req, res) => {
   try {
-    const { id } = req.params;
-    await Notification.findByIdAndUpdate(id, { isRead: true });
-    res.status(200).json({ message: "Marked as read" });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to update notification" });
+    const notification = await Notification.findByIdAndUpdate(
+      req.params.notificationId, { isRead: true }, { new: true }
+    );
+    if (!notification) return res.status(404).json({ message: "Not found" });
+    res.json(notification);
+  } catch {
+    res.status(500).json({ message: "Failed to mark as read" });
+  }
+};
+
+// Create and emit notification
+export const createNotification = async (req, res) => {
+  try {
+    let notification = await Notification.create({
+      sender: req.user._id,
+      receiver: req.body.receiverId,
+      type: req.body.type,
+      message: req.body.message
+    });
+
+    notification = await notification.populate("sender", "username name profilePic");
+
+    const receiverSocket = onlineUsers[req.body.receiverId];
+    if (receiverSocket) {
+      io.to(receiverSocket).emit("receive_notification", notification);
+    }
+
+    res.status(201).json(notification);
+  } catch {
+    res.status(500).json({ message: "Failed to create notification" });
   }
 };
